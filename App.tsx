@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout } from './components/Layout.tsx';
+import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { Recipes } from './pages/Recipes';
 import { Inventory } from './pages/Inventory';
