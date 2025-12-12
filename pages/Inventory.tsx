@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Ingredient, Unit } from '../types';
-import { Plus, AlertTriangle, Edit2, Search, Trash2 } from 'lucide-react';
+import { Plus, AlertTriangle, Edit2, Search, Trash2, Package } from 'lucide-react';
 
 interface InventoryProps {
   ingredients: Ingredient[];
@@ -159,55 +159,109 @@ export const Inventory: React.FC<InventoryProps> = ({ ingredients, onAddIngredie
            </div>
        )}
 
-       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-           <table className="w-full text-left">
-               <thead className="bg-gray-50 text-gray-500 text-sm">
-                   <tr>
-                       <th className="p-4 font-medium">Nome</th>
-                       <th className="p-4 font-medium text-center">Emb. Referência</th>
-                       <th className="p-4 font-medium text-right">Custo Calc.</th>
-                       <th className="p-4 font-medium text-right">Estoque</th>
-                       <th className="p-4 font-medium text-center">Ação</th>
-                   </tr>
-               </thead>
-               <tbody className="divide-y divide-gray-100">
-                   {filtered.map(ing => (
-                       <tr key={ing.id} className="hover:bg-gray-50">
-                           <td className="p-4 font-medium text-gray-800">{ing.name}</td>
-                           <td className="p-4 text-center text-sm text-gray-500">
-                               {ing.lastPackageSize ? (
-                                   <span>{ing.lastPackageSize} {ing.unit} = R$ {ing.lastPackagePrice?.toFixed(2)}</span>
-                               ) : (
-                                   <span>-</span>
-                               )}
-                           </td>
-                           <td className="p-4 text-right">R$ {ing.pricePerUnit.toFixed(4)} / {ing.unit}</td>
-                           <td className="p-4 text-right">
-                               <div className="flex flex-col items-end">
-                                   <span className={`font-bold ${ing.currentStock <= ing.minStockAlert ? 'text-red-500' : 'text-gray-800'}`}>
-                                       {ing.currentStock.toFixed(2)} {ing.unit}
-                                   </span>
-                                   {ing.currentStock <= ing.minStockAlert && (
-                                       <span className="flex items-center text-xs text-red-500">
-                                           <AlertTriangle size={12} className="mr-1" /> Baixo
-                                       </span>
-                                   )}
-                               </div>
-                           </td>
-                           <td className="p-4 text-center">
-                               <div className="flex items-center justify-center gap-2">
-                                   <button onClick={() => openEdit(ing)} className="p-2 text-gray-400 hover:text-brand-500 hover:bg-brand-50 rounded-lg transition-colors" title="Editar">
-                                       <Edit2 size={18} />
-                                   </button>
-                                   <button onClick={() => onDeleteIngredient(ing.id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Excluir">
-                                       <Trash2 size={18} />
-                                   </button>
-                               </div>
-                           </td>
-                       </tr>
-                   ))}
-               </tbody>
-           </table>
+       {/* --- VIEW MOBILE (CARDS) --- */}
+       <div className="md:hidden space-y-3">
+            {filtered.map(ing => (
+                <div key={ing.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                    <div className="flex justify-between items-start mb-2">
+                        <div>
+                            <h4 className="font-bold text-gray-800 flex items-center gap-2">
+                                <Package size={16} className="text-brand-500" />
+                                {ing.name}
+                            </h4>
+                            <div className="text-xs text-gray-500 mt-1">
+                                Ref: {ing.lastPackageSize} {ing.unit} = R$ {ing.lastPackagePrice?.toFixed(2)}
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <div className={`font-bold text-lg ${ing.currentStock <= ing.minStockAlert ? 'text-red-500' : 'text-gray-800'}`}>
+                                {ing.currentStock.toFixed(2)} <span className="text-sm font-normal text-gray-500">{ing.unit}</span>
+                            </div>
+                            <div className="text-[10px] text-gray-400">R$ {ing.pricePerUnit.toFixed(4)}/{ing.unit}</div>
+                        </div>
+                    </div>
+                    
+                    {ing.currentStock <= ing.minStockAlert && (
+                        <div className="bg-red-50 text-red-600 text-xs px-2 py-1 rounded-md inline-flex items-center mb-3">
+                            <AlertTriangle size={12} className="mr-1"/> Estoque Baixo (Mín: {ing.minStockAlert})
+                        </div>
+                    )}
+
+                    <div className="flex gap-2 mt-2 pt-3 border-t border-gray-50">
+                        <button 
+                            onClick={() => openEdit(ing)}
+                            className="flex-1 bg-brand-50 text-brand-700 py-2.5 rounded-lg text-sm font-medium flex items-center justify-center hover:bg-brand-100 transition-colors"
+                        >
+                            <Edit2 size={16} className="mr-2"/> Editar
+                        </button>
+                        <button 
+                            onClick={() => onDeleteIngredient(ing.id)}
+                            className="flex-1 bg-gray-50 text-gray-600 py-2.5 rounded-lg text-sm font-medium flex items-center justify-center hover:bg-red-50 hover:text-red-600 transition-colors"
+                        >
+                            <Trash2 size={16} className="mr-2"/> Excluir
+                        </button>
+                    </div>
+                </div>
+            ))}
+            {filtered.length === 0 && (
+                <div className="bg-white p-8 rounded-xl text-center text-gray-500 border border-dashed border-gray-300">
+                    Nenhum insumo encontrado.
+                </div>
+            )}
+       </div>
+
+       {/* --- VIEW DESKTOP (TABLE) --- */}
+       <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+           <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                    <thead className="bg-gray-50 text-gray-500 text-sm">
+                        <tr>
+                            <th className="p-4 font-medium">Nome</th>
+                            <th className="p-4 font-medium text-center">Emb. Referência</th>
+                            <th className="p-4 font-medium text-right">Custo Calc.</th>
+                            <th className="p-4 font-medium text-right">Estoque</th>
+                            <th className="p-4 font-medium text-center">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                        {filtered.map(ing => (
+                            <tr key={ing.id} className="hover:bg-gray-50">
+                                <td className="p-4 font-medium text-gray-800">{ing.name}</td>
+                                <td className="p-4 text-center text-sm text-gray-500">
+                                    {ing.lastPackageSize ? (
+                                        <span>{ing.lastPackageSize} {ing.unit} = R$ {ing.lastPackagePrice?.toFixed(2)}</span>
+                                    ) : (
+                                        <span>-</span>
+                                    )}
+                                </td>
+                                <td className="p-4 text-right">R$ {ing.pricePerUnit.toFixed(4)} / {ing.unit}</td>
+                                <td className="p-4 text-right">
+                                    <div className="flex flex-col items-end">
+                                        <span className={`font-bold ${ing.currentStock <= ing.minStockAlert ? 'text-red-500' : 'text-gray-800'}`}>
+                                            {ing.currentStock.toFixed(2)} {ing.unit}
+                                        </span>
+                                        {ing.currentStock <= ing.minStockAlert && (
+                                            <span className="flex items-center text-xs text-red-500">
+                                                <AlertTriangle size={12} className="mr-1" /> Baixo
+                                            </span>
+                                        )}
+                                    </div>
+                                </td>
+                                <td className="p-4 text-center">
+                                    <div className="flex items-center justify-center gap-2">
+                                        <button onClick={() => openEdit(ing)} className="p-2 text-gray-400 hover:text-brand-500 hover:bg-brand-50 rounded-lg transition-colors" title="Editar">
+                                            <Edit2 size={18} />
+                                        </button>
+                                        <button onClick={() => onDeleteIngredient(ing.id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Excluir">
+                                            <Trash2 size={18} />
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+           </div>
            {filtered.length === 0 && <div className="p-8 text-center text-gray-500">Nenhum insumo encontrado.</div>}
        </div>
     </div>
