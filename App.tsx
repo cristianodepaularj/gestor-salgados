@@ -30,6 +30,7 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isDataLoading, setIsDataLoading] = useState(false);
   const [authError, setAuthError] = useState('');
+  const [dbError, setDbError] = useState(''); // Novo estado para erros críticos de DB
   const [user, setUser] = useState<any>(null);
   
   // Subscription State
@@ -65,78 +66,89 @@ const App: React.FC = () => {
   // 2. Verifica Assinatura antes de carregar dados
   const checkSubscriptionAndLoad = async (currentUser: any) => {
       setIsDataLoading(true);
+      setDbError('');
       
       // REGRA DO DONO: Acesso Total Imediato
       const isOwner = currentUser.email === 'cristianospaula1972@gmail.com';
 
       // Fetch Profile
-      let { data: profileData, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', currentUser.id)
-        .single();
-      
-      // AUTO-SYNC: Se o perfil existe mas não tem nome/telefone, tenta pegar do Auth Metadata
-      if (profileData && (!profileData.full_name || !profileData.phone)) {
-          const metaName = currentUser.user_metadata?.full_name || currentUser.user_metadata?.name || currentUser.user_metadata?.display_name;
-          const metaPhone = currentUser.user_metadata?.phone;
+      try {
+          let { data: profileData, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', currentUser.id)
+            .single();
+          
+          if (error && error.code === '42P17') {
+              throw new Error("Erro Crítico no Banco de Dados: Recursão Infinita. Execute o script SQL de correção.");
+          }
+          
+          // AUTO-SYNC: Se o perfil existe mas não tem nome/telefone, tenta pegar do Auth Metadata
+          if (profileData && (!profileData.full_name || !profileData.phone)) {
+              const metaName = currentUser.user_metadata?.full_name || currentUser.user_metadata?.name || currentUser.user_metadata?.display_name;
+              const metaPhone = currentUser.user_metadata?.phone;
 
-          if (metaName || metaPhone) {
-              const updates: any = {};
-              if (!profileData.full_name && metaName) updates.full_name = metaName;
-              if (!profileData.phone && metaPhone) updates.phone = metaPhone;
+              if (metaName || metaPhone) {
+                  const updates: any = {};
+                  if (!profileData.full_name && metaName) updates.full_name = metaName;
+                  if (!profileData.phone && metaPhone) updates.phone = metaPhone;
 
-              const { data: updatedProfile } = await supabase
-                  .from('profiles')
-                  .update(updates)
-                  .eq('id', currentUser.id)
-                  .select()
-                  .single();
+                  const { data: updatedProfile } = await supabase
+                      .from('profiles')
+                      .update(updates)
+                      .eq('id', currentUser.id)
+                      .select()
+                      .single();
+                  
+                  if (updatedProfile) profileData = updatedProfile;
+              }
+          }
+          
+          if (profileData) {
+              // Se for o dono, forçamos is_admin = true localmente para garantir acesso
+              const userProfile = isOwner 
+                ? { ...profileData, is_admin: true, subscription_status: 'active' } 
+                : profileData;
+
+              setProfile(userProfile as UserProfile);
               
-              if (updatedProfile) profileData = updatedProfile;
+              const isExpired = userProfile.subscription_expires_at 
+                ? new Date(userProfile.subscription_expires_at) < new Date() 
+                : false;
+              
+              // Se não for admin (e não for o dono), verifica bloqueio
+              if (!userProfile.is_admin && (userProfile.subscription_status === 'blocked' || isExpired)) {
+                  setIsDataLoading(false);
+                  return; // Stop loading data (Blocked)
+              }
+              
+              // Load Data
+              setCurrentPage('dashboard');
+              fetchData(currentUser.id);
+          } else {
+              // Fallback se perfil não existir (ex: erro no trigger, ou primeira vez)
+              // Tenta criar perfil na hora se não existir (failsafe)
+              const metaName = currentUser.user_metadata?.full_name || currentUser.user_metadata?.name || '';
+              const metaPhone = currentUser.user_metadata?.phone || '';
+              
+              if (isOwner) {
+                setProfile({ 
+                    id: currentUser.id, 
+                    email: currentUser.email, 
+                    full_name: metaName,
+                    phone: metaPhone,
+                    is_admin: true, 
+                    subscription_status: 'active', 
+                    subscription_expires_at: '' 
+                } as any);
+              }
+              fetchData(currentUser.id); 
+              setCurrentPage('dashboard');
           }
-      }
-      
-      if (profileData) {
-          // Se for o dono, forçamos is_admin = true localmente para garantir acesso
-          const userProfile = isOwner 
-            ? { ...profileData, is_admin: true, subscription_status: 'active' } 
-            : profileData;
-
-          setProfile(userProfile as UserProfile);
-          
-          const isExpired = userProfile.subscription_expires_at 
-            ? new Date(userProfile.subscription_expires_at) < new Date() 
-            : false;
-          
-          // Se não for admin (e não for o dono), verifica bloqueio
-          if (!userProfile.is_admin && (userProfile.subscription_status === 'blocked' || isExpired)) {
-              setIsDataLoading(false);
-              return; // Stop loading data (Blocked)
-          }
-          
-          // Load Data
-          setCurrentPage('dashboard');
-          fetchData(currentUser.id);
-      } else {
-          // Fallback se perfil não existir (ex: erro no trigger, ou primeira vez)
-          // Tenta criar perfil na hora se não existir (failsafe)
-          const metaName = currentUser.user_metadata?.full_name || currentUser.user_metadata?.name || '';
-          const metaPhone = currentUser.user_metadata?.phone || '';
-          
-          if (isOwner) {
-            setProfile({ 
-                id: currentUser.id, 
-                email: currentUser.email, 
-                full_name: metaName,
-                phone: metaPhone,
-                is_admin: true, 
-                subscription_status: 'active', 
-                subscription_expires_at: '' 
-            } as any);
-          }
-          fetchData(currentUser.id); 
-          setCurrentPage('dashboard');
+      } catch (err: any) {
+          console.error("Erro crítico ao carregar perfil:", err);
+          setDbError(err.message || "Erro desconhecido ao carregar perfil.");
+          setIsDataLoading(false);
       }
   };
 
@@ -432,6 +444,40 @@ const App: React.FC = () => {
           alert("Venda registrada na nuvem!");
       }
   };
+  
+  // --- ERROR STATE RENDER ---
+  if (dbError) {
+      return (
+          <div className="min-h-screen bg-brand-50 flex flex-col items-center justify-center p-6 text-center">
+              <div className="bg-white p-8 rounded-3xl shadow-2xl max-w-md w-full border-4 border-red-100">
+                  <div className="flex justify-center mb-6">
+                      <div className="bg-red-100 p-6 rounded-full text-red-600 animate-pulse">
+                          <AlertTriangle size={64} />
+                      </div>
+                  </div>
+                  <h1 className="text-2xl font-extrabold text-gray-800 mb-2">Erro no Banco de Dados</h1>
+                  <p className="text-gray-500 mb-6 font-medium text-sm">
+                      O banco de dados precisa ser configurado.
+                  </p>
+                  
+                  <div className="bg-gray-100 p-4 rounded-xl text-left text-xs font-mono text-gray-700 mb-6 border border-gray-200 overflow-auto max-h-40">
+                      {dbError}
+                  </div>
+                  
+                  <p className="text-sm text-gray-600 mb-4">
+                      Se você é o administrador, vá ao painel do Supabase e rode o Script SQL fornecido para corrigir as permissões.
+                  </p>
+
+                  <button 
+                    onClick={handleLogout} 
+                    className="w-full py-3 bg-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-300 transition-colors"
+                  >
+                      Sair e Tentar Novamente
+                  </button>
+              </div>
+          </div>
+      );
+  }
 
   // --- SUBSCRIPTION CHECK RENDER ---
   const isExpired = profile?.subscription_expires_at ? new Date(profile.subscription_expires_at) < new Date() : false;

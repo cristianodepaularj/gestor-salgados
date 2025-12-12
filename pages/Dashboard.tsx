@@ -113,7 +113,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ sales, purchases, recipes 
   };
 
   const handleExportXLS = () => {
-      // Build an HTML Table string which Excel opens perfectly (CSV with semicolons is messy)
       let table = `
         <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
         <head><meta charset="UTF-8"></head>
@@ -181,7 +180,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ sales, purchases, recipes 
   return (
     <div className="space-y-6">
       
-      {/* Top Toolbar: Filters & Actions */}
+      {/* Top Toolbar */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100 print:hidden">
          <div className="flex flex-col gap-2 w-full md:w-auto">
              <label className="text-sm font-bold text-gray-700 flex items-center gap-1">
@@ -205,7 +204,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ sales, purchases, recipes 
          </div>
 
          <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
-             {/* Cashier Button */}
              <button 
                 onClick={() => {
                     setCashAction(currentSession ? 'close' : 'open');
@@ -221,7 +219,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ sales, purchases, recipes 
                 {currentSession ? 'Caixa Aberto' : 'Caixa Fechado'}
              </button>
 
-             {/* Export Buttons */}
              <button onClick={handleExportXLS} className="px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg flex items-center gap-2 font-medium border border-gray-200 whitespace-nowrap">
                  <Download size={18} /> Excel (.xls)
              </button>
@@ -231,7 +228,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ sales, purchases, recipes 
          </div>
       </div>
 
-      {/* Cashier Status Banner (Only if open) */}
+      {/* Cashier Status Banner */}
       {currentSession && (
           <div className="bg-green-50 border border-green-200 p-4 rounded-xl flex flex-col md:flex-row justify-between items-center text-green-800 print:hidden">
               <div className="flex items-center gap-3">
@@ -275,47 +272,54 @@ export const Dashboard: React.FC<DashboardProps> = ({ sales, purchases, recipes 
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:block">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 print:border-gray-300 print:mb-6 print:shadow-none">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 print:border-gray-300 print:mb-6 print:shadow-none min-w-0">
           <h3 className="text-lg font-bold text-gray-800 mb-4">Top Produtos Vendidos</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats.topProducts} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                <XAxis type="number" />
-                <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 11}} />
-                <Tooltip />
-                <Bar dataKey="count" fill="#f97316" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="w-full" style={{ height: 300 }}>
+             {stats.topProducts.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stats.topProducts} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                    <XAxis type="number" />
+                    <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 11}} />
+                    <Tooltip cursor={{fill: '#f4f4f5'}} />
+                    <Bar dataKey="count" fill="#f97316" radius={[0, 4, 4, 0]} barSize={20} />
+                </BarChart>
+                </ResponsiveContainer>
+             ) : (
+                 <div className="h-full flex items-center justify-center text-gray-400 text-sm">Sem vendas no período</div>
+             )}
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 print:border-gray-300 print:shadow-none">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 print:border-gray-300 print:shadow-none min-w-0">
            <h3 className="text-lg font-bold text-gray-800 mb-4">Distribuição de Vendas</h3>
-           <div className="h-64">
-             <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={stats.topProducts}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="count"
-                  >
-                    {stats.topProducts.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-             </ResponsiveContainer>
+           <div className="w-full" style={{ height: 300 }}>
+             {stats.topProducts.length > 0 ? (
+                 <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                    <Pie
+                        data={stats.topProducts}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="count"
+                    >
+                        {stats.topProducts.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                    </Pie>
+                    <Tooltip />
+                    </PieChart>
+                </ResponsiveContainer>
+             ) : (
+                <div className="h-full flex items-center justify-center text-gray-400 text-sm">Sem vendas no período</div>
+             )}
            </div>
         </div>
       </div>
 
-      {/* Print Footer */}
       <div className="hidden print:block text-center text-xs text-gray-400 mt-8">
           Relatório gerado em {new Date().toLocaleString()} - GestorPro
       </div>
@@ -335,7 +339,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ sales, purchases, recipes 
                             <span className="font-bold">R$ {currentSession.initialBalance.toFixed(2)}</span>
                         </div>
                         
-                        {/* Logic to show sales since open */}
                         <div className="flex justify-between text-green-600">
                              <span className="opacity-80">Vendas (Sessão Atual):</span>
                              {(() => {
@@ -346,7 +349,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ sales, purchases, recipes 
                              })()}
                         </div>
                         
-                        {/* Helper to show TOTAL sales today in case user opened cash register late */}
                         <div className="flex justify-between text-gray-400 text-xs py-1 border-b border-gray-200">
                             <span>Vendas Totais do Dia:</span>
                              {(() => {
@@ -357,22 +359,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ sales, purchases, recipes 
                                  return <span>R$ {salesToday.toFixed(2)}</span>;
                              })()}
                         </div>
-                        {(() => {
-                            const salesSince = sales
-                                .filter(s => new Date(s.date).getTime() >= new Date(currentSession.openedAt).getTime())
-                                .reduce((acc, curr) => acc + curr.total, 0);
-                            
-                             if (salesSince === 0) {
-                                return (
-                                    <div className="flex items-start gap-1 text-[10px] text-orange-600 bg-orange-50 p-1 rounded mt-1">
-                                        <AlertCircle size={12} className="mt-0.5" />
-                                        <span>Se as vendas aparecem zeradas aqui, é porque foram feitas antes de você clicar em "Abrir Caixa". Confira "Vendas Totais do Dia" acima.</span>
-                                    </div>
-                                )
-                             }
-                             return null;
-                        })()}
-
+                        
                         <div className="pt-2 flex justify-between">
                             <span>Esperado em Caixa:</span>
                             <span className="font-bold text-gray-800">
