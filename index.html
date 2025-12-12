@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
+    <title>Gestor Salgados & Doces</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              brand: {
+                50: '#fff7ed',
+                100: '#ffedd5',
+                500: '#f97316', // Orange for food appetite
+                600: '#ea580c',
+                900: '#7c2d12',
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      /* Hide scrollbar for cleaner mobile UI */
+      ::-webkit-scrollbar {
+        width: 0px;
+        background: transparent;
+      }
+
+      /* Print Styles for PDF Generation */
+      @media print {
+        @page { margin: 1cm; size: auto; }
+        body { 
+          background: white !important; 
+          height: auto !important; 
+          overflow: visible !important;
+        }
+        #root, main {
+          height: auto !important;
+          overflow: visible !important;
+          display: block !important;
+        }
+        /* Hide sidebar, headers, buttons */
+        aside, header, button, input[type="date"], .no-print {
+          display: none !important;
+        }
+        /* Fix Layout for print */
+        .print\:hidden { display: none !important; }
+        .print\:block { display: block !important; }
+        .print\:shadow-none { box-shadow: none !important; }
+        .print\:border-gray-300 { border-color: #d1d5db !important; }
+        
+        /* Ensure charts/grids wrap correctly */
+        .grid { display: block !important; }
+        .grid > div { margin-bottom: 20px; break-inside: avoid; page-break-inside: avoid; }
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "recharts": "https://esm.sh/recharts@^3.5.1",
+    "lucide-react": "https://esm.sh/lucide-react@^0.561.0",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "@google/genai": "https://esm.sh/@google/genai@^1.33.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.87.1"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-gray-50 text-gray-900 antialiased select-none">
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>

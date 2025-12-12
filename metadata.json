@@ -1,0 +1,7 @@
+{
+  "name": "Gestor Salgados & Doces",
+  "description": "Sistema de gestão para pequenos negócios de alimentação com controle de receitas, custos, estoque e vendas.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
