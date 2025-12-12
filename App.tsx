@@ -56,21 +56,57 @@ const App: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // 2. Função para Carregar Dados do Banco (SELECT)
+  // 2. Função para Carregar Dados do Banco (SELECT) com Mapeamento snake_case -> camelCase
   const fetchData = async (userId: string) => {
       setIsDataLoading(true);
       try {
+          // Ingredientes
           const { data: ingData } = await supabase.from('ingredients').select('*');
-          if (ingData) setIngredients(ingData);
+          if (ingData) {
+              setIngredients(ingData.map((i: any) => ({
+                  id: i.id,
+                  name: i.name,
+                  unit: i.unit,
+                  pricePerUnit: i.price_per_unit,
+                  lastPackagePrice: i.last_package_price,
+                  lastPackageSize: i.last_package_size,
+                  currentStock: i.current_stock,
+                  minStockAlert: i.min_stock_alert,
+                  updatedAt: i.updated_at
+              })));
+          }
 
+          // Receitas
           const { data: recData } = await supabase.from('recipes').select('*');
-          if (recData) setRecipes(recData);
+          if (recData) {
+              setRecipes(recData.map((r: any) => ({
+                  id: r.id,
+                  name: r.name,
+                  items: r.items, // JSONB array usually stays as is
+                  yieldAmount: r.yield_amount,
+                  yieldUnit: r.yield_unit,
+                  sellingPrice: r.selling_price,
+                  indirectCosts: r.indirect_costs,
+                  preparationTimeMinutes: r.preparation_time_minutes
+              })));
+          }
 
+          // Vendas
           const { data: saleData } = await supabase.from('sales').select('*');
-          if (saleData) setSales(saleData);
+          if (saleData) {
+              setSales(saleData.map((s: any) => ({
+                  id: s.id,
+                  date: s.date,
+                  items: s.items,
+                  total: s.total,
+                  paymentMethod: s.payment_method,
+                  profit: s.profit
+              })));
+          }
 
+          // Compras
           const { data: purchData } = await supabase.from('purchases').select('*');
-          if (purchData) setPurchases(purchData);
+          if (purchData) setPurchases(purchData); // Compras geralmente não tem campos complexos renomeados, assumindo compatibilidade básica ou JSONB
 
       } catch (error) {
           console.error("Erro ao baixar dados:", error);
@@ -92,7 +128,6 @@ const App: React.FC = () => {
         setAuthError('Erro ao entrar. Verifique credenciais.');
         setIsLoading(false);
     }
-    // Sucesso é tratado pelo onAuthStateChange
   };
 
   const handleSignUp = async () => {
@@ -108,26 +143,64 @@ const App: React.FC = () => {
     await supabase.auth.signOut();
   };
 
-  // --- Data Handlers (CRUD com Supabase) ---
+  // --- Data Handlers (CRUD com Supabase e Mapeamento) ---
 
   // INGREDIENTES
   const handleAddIngredient = async (ing: Ingredient) => {
     if (!user) return;
-    const payload = { ...ing, user_id: user.id };
     
+    // Mapeamento Frontend -> DB (camelCase -> snake_case)
+    const payload = {
+        user_id: user.id,
+        name: ing.name,
+        unit: ing.unit,
+        price_per_unit: ing.pricePerUnit,
+        last_package_price: ing.lastPackagePrice,
+        last_package_size: ing.lastPackageSize,
+        current_stock: ing.currentStock,
+        min_stock_alert: ing.minStockAlert,
+        updated_at: new Date().toISOString()
+    };
+    
+    // O Supabase retorna os dados como snake_case
     const { data, error } = await supabase.from('ingredients').insert(payload).select().single();
     
     if (error) {
         alert('Erro ao salvar: ' + error.message);
     } else if (data) {
-        setIngredients([...ingredients, data]);
+        // Mapear de volta para o estado local
+        const newIng: Ingredient = {
+            id: data.id,
+            name: data.name,
+            unit: data.unit,
+            pricePerUnit: data.price_per_unit,
+            lastPackagePrice: data.last_package_price,
+            lastPackageSize: data.last_package_size,
+            currentStock: data.current_stock,
+            minStockAlert: data.min_stock_alert,
+            updatedAt: data.updated_at
+        };
+        setIngredients([...ingredients, newIng]);
     }
   };
 
   const handleUpdateIngredient = async (ing: Ingredient) => {
-    const { error } = await supabase.from('ingredients').update({ ...ing }).eq('id', ing.id);
+    const payload = {
+        name: ing.name,
+        unit: ing.unit,
+        price_per_unit: ing.pricePerUnit,
+        last_package_price: ing.lastPackagePrice,
+        last_package_size: ing.lastPackageSize,
+        current_stock: ing.currentStock,
+        min_stock_alert: ing.minStockAlert,
+        updated_at: new Date().toISOString()
+    };
+
+    const { error } = await supabase.from('ingredients').update(payload).eq('id', ing.id);
     if (!error) {
         setIngredients(ingredients.map(i => i.id === ing.id ? ing : i));
+    } else {
+        alert("Erro ao atualizar: " + error.message);
     }
   };
 
@@ -136,6 +209,8 @@ const App: React.FC = () => {
         const { error } = await supabase.from('ingredients').delete().eq('id', id);
         if (!error) {
             setIngredients(ingredients.filter(i => i.id !== id));
+        } else {
+            alert("Erro ao deletar: " + error.message);
         }
     }
   };
@@ -143,13 +218,49 @@ const App: React.FC = () => {
   // RECEITAS
   const handleAddRecipe = async (recipe: Recipe) => {
     if (!user) return;
-    const payload = { ...recipe, user_id: user.id };
+    
+    const payload = {
+        user_id: user.id,
+        name: recipe.name,
+        items: recipe.items, // JSONB
+        yield_amount: recipe.yieldAmount,
+        yield_unit: recipe.yieldUnit,
+        selling_price: recipe.sellingPrice,
+        indirect_costs: recipe.indirectCosts,
+        preparation_time_minutes: recipe.preparationTimeMinutes
+    };
+
     const { data, error } = await supabase.from('recipes').insert(payload).select().single();
-    if (!error && data) setRecipes([...recipes, data]);
+    
+    if (!error && data) {
+        const newRecipe: Recipe = {
+            id: data.id,
+            name: data.name,
+            items: data.items,
+            yieldAmount: data.yield_amount,
+            yieldUnit: data.yield_unit,
+            sellingPrice: data.selling_price,
+            indirectCosts: data.indirect_costs,
+            preparationTimeMinutes: data.preparation_time_minutes
+        };
+        setRecipes([...recipes, newRecipe]);
+    } else if (error) {
+        alert("Erro ao salvar receita: " + error.message);
+    }
   };
 
   const handleUpdateRecipe = async (recipe: Recipe) => {
-    const { error } = await supabase.from('recipes').update({ ...recipe }).eq('id', recipe.id);
+    const payload = {
+        name: recipe.name,
+        items: recipe.items,
+        yield_amount: recipe.yieldAmount,
+        yield_unit: recipe.yieldUnit,
+        selling_price: recipe.sellingPrice,
+        indirect_costs: recipe.indirectCosts,
+        preparation_time_minutes: recipe.preparationTimeMinutes
+    };
+
+    const { error } = await supabase.from('recipes').update(payload).eq('id', recipe.id);
     if (!error) setRecipes(recipes.map(r => r.id === recipe.id ? recipe : r));
   };
 
@@ -169,8 +280,15 @@ const App: React.FC = () => {
 
           let hasError = false;
           for (const ing of updates) {
-              const { error } = await supabase.from('ingredients').update({ currentStock: ing.currentStock }).eq('id', ing.id);
-              if (error) hasError = true;
+              // CORREÇÃO AQUI: Usar snake_case no update
+              const { error } = await supabase.from('ingredients').update({ 
+                  current_stock: ing.currentStock 
+              }).eq('id', ing.id);
+              
+              if (error) {
+                  console.error(error);
+                  hasError = true;
+              }
           }
 
           if (!hasError) {
@@ -189,6 +307,7 @@ const App: React.FC = () => {
     if (!user) return;
     
     const payload = { ...purchase, user_id: user.id };
+    // Assumindo que a tabela purchases usa nomes simples ou JSONB para items
     const { data: purchaseData, error } = await supabase.from('purchases').insert(payload).select().single();
     
     if (error) {
@@ -207,8 +326,9 @@ const App: React.FC = () => {
         });
 
         for (const ing of changedIngredients) {
+             // CORREÇÃO AQUI: Usar snake_case no update
              await supabase.from('ingredients').update({
-                 currentStock: ing.currentStock,
+                 current_stock: ing.currentStock,
                  price_per_unit: ing.pricePerUnit, 
                  last_package_price: ing.lastPackagePrice,
                  last_package_size: ing.lastPackageSize,
@@ -231,14 +351,27 @@ const App: React.FC = () => {
   // VENDAS
   const handleAddSale = async (sale: Sale) => {
       if (!user) return;
-      const payload = { ...sale, user_id: user.id };
+      const payload = { 
+          user_id: user.id,
+          date: sale.date,
+          items: sale.items,
+          total: sale.total,
+          payment_method: sale.paymentMethod, // Mapeamento
+          profit: sale.profit
+      };
+
       const { data, error } = await supabase.from('sales').insert(payload).select().single();
       
       if (!error && data) {
-          setSales([...sales, data]);
+          const newSale = {
+              ...data,
+              paymentMethod: data.payment_method // Mapeamento reverso se necessário, mas para lista local usamos o 'sale' original ou reload
+          };
+          // Usamos o objeto retornado para garantir ID, mas mapeamos campos
+          setSales([...sales, { ...sale, id: data.id }]); 
           alert("Venda registrada na nuvem!");
       } else {
-          alert("Erro ao salvar venda.");
+          alert("Erro ao salvar venda: " + (error?.message || ''));
       }
   };
 
