@@ -60,9 +60,9 @@ const App: React.FC = () => {
   const fetchData = async (userId: string) => {
       setIsDataLoading(true);
       try {
-          // Ingredientes
+          // --- INGREDIENTES ---
           const { data: ingData, error: ingError } = await supabase.from('ingredients').select('*');
-          if (ingError) console.error("Erro ao carregar estoque:", ingError);
+          if (ingError) console.error("Erro ingredientes:", ingError);
           if (ingData) {
               setIngredients(ingData.map((i: any) => ({
                   id: i.id,
@@ -77,37 +77,48 @@ const App: React.FC = () => {
               })));
           }
 
-          // Receitas
-          const { data: recData } = await supabase.from('recipes').select('*');
+          // --- RECEITAS ---
+          const { data: recData, error: recError } = await supabase.from('recipes').select('*');
+          if (recError) console.error("Erro receitas:", recError);
           if (recData) {
               setRecipes(recData.map((r: any) => ({
                   id: r.id,
                   name: r.name,
-                  items: r.items || [], // JSONB array usually stays as is
+                  items: r.items || [], 
                   yieldAmount: Number(r.yield_amount || 0),
-                  yieldUnit: r.yield_unit,
+                  yieldUnit: r.yield_unit || 'unidades',
                   sellingPrice: Number(r.selling_price || 0),
                   indirectCosts: Number(r.indirect_costs || 0),
                   preparationTimeMinutes: Number(r.preparation_time_minutes || 0)
               })));
           }
 
-          // Vendas
-          const { data: saleData } = await supabase.from('sales').select('*');
+          // --- VENDAS ---
+          const { data: saleData, error: saleError } = await supabase.from('sales').select('*');
+          if (saleError) console.error("Erro vendas:", saleError);
           if (saleData) {
               setSales(saleData.map((s: any) => ({
                   id: s.id,
                   date: s.date,
                   items: s.items || [],
                   total: Number(s.total || 0),
-                  paymentMethod: s.payment_method,
+                  paymentMethod: s.payment_method || 'Dinheiro',
                   profit: Number(s.profit || 0)
               })));
           }
 
-          // Compras
-          const { data: purchData } = await supabase.from('purchases').select('*');
-          if (purchData) setPurchases(purchData); 
+          // --- COMPRAS ---
+          const { data: purchData, error: purchError } = await supabase.from('purchases').select('*');
+          if (purchError) console.error("Erro compras:", purchError);
+          if (purchData) {
+              setPurchases(purchData.map((p: any) => ({
+                  id: p.id,
+                  date: p.date,
+                  items: p.items || [],
+                  total: Number(p.total || 0),
+                  notes: p.notes
+              })));
+          }
 
       } catch (error) {
           console.error("Erro geral ao baixar dados:", error);
@@ -122,9 +133,7 @@ const App: React.FC = () => {
     e.preventDefault();
     setIsLoading(true);
     setAuthError('');
-
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-
     if (error) {
         setAuthError('Erro ao entrar. Verifique credenciais.');
         setIsLoading(false);
@@ -144,13 +153,11 @@ const App: React.FC = () => {
     await supabase.auth.signOut();
   };
 
-  // --- Data Handlers (CRUD com Supabase e Mapeamento) ---
+  // --- Data Handlers (CRUD) ---
 
   // INGREDIENTES
   const handleAddIngredient = async (ing: Ingredient) => {
     if (!user) return;
-    
-    // Mapeamento Frontend -> DB (camelCase -> snake_case)
     const payload = {
         user_id: user.id,
         name: ing.name,
@@ -163,26 +170,11 @@ const App: React.FC = () => {
         updated_at: new Date().toISOString()
     };
     
-    // O Supabase retorna os dados como snake_case
     const { data, error } = await supabase.from('ingredients').insert(payload).select().single();
-    
-    if (error) {
-        alert('Erro ao salvar no banco (Verifique se as colunas name/current_stock existem): ' + error.message);
-        console.error(error);
-    } else if (data) {
-        // Mapear de volta para o estado local
-        const newIng: Ingredient = {
-            id: data.id,
-            name: data.name,
-            unit: data.unit,
-            pricePerUnit: data.price_per_unit,
-            lastPackagePrice: data.last_package_price,
-            lastPackageSize: data.last_package_size,
-            currentStock: data.current_stock,
-            minStockAlert: data.min_stock_alert,
-            updatedAt: data.updated_at
-        };
-        setIngredients([...ingredients, newIng]);
+    if (!error && data) {
+        setIngredients([...ingredients, { ...ing, id: data.id }]);
+    } else {
+        alert('Erro ao salvar Insumo (Verifique se rodou o SQL): ' + (error?.message || ''));
     }
   };
 
@@ -197,34 +189,25 @@ const App: React.FC = () => {
         min_stock_alert: ing.minStockAlert,
         updated_at: new Date().toISOString()
     };
-
     const { error } = await supabase.from('ingredients').update(payload).eq('id', ing.id);
-    if (!error) {
-        setIngredients(ingredients.map(i => i.id === ing.id ? ing : i));
-    } else {
-        alert("Erro ao atualizar: " + error.message);
-    }
+    if (!error) setIngredients(ingredients.map(i => i.id === ing.id ? ing : i));
+    else alert('Erro ao atualizar Insumo: ' + error.message);
   };
 
   const handleDeleteIngredient = async (id: string) => {
     if (window.confirm("Tem certeza?")) {
         const { error } = await supabase.from('ingredients').delete().eq('id', id);
-        if (!error) {
-            setIngredients(ingredients.filter(i => i.id !== id));
-        } else {
-            alert("Erro ao deletar: " + error.message);
-        }
+        if (!error) setIngredients(ingredients.filter(i => i.id !== id));
     }
   };
 
   // RECEITAS
   const handleAddRecipe = async (recipe: Recipe) => {
     if (!user) return;
-    
     const payload = {
         user_id: user.id,
         name: recipe.name,
-        items: recipe.items, // JSONB
+        items: recipe.items,
         yield_amount: recipe.yieldAmount,
         yield_unit: recipe.yieldUnit,
         selling_price: recipe.sellingPrice,
@@ -233,21 +216,10 @@ const App: React.FC = () => {
     };
 
     const { data, error } = await supabase.from('recipes').insert(payload).select().single();
-    
     if (!error && data) {
-        const newRecipe: Recipe = {
-            id: data.id,
-            name: data.name,
-            items: data.items,
-            yieldAmount: data.yield_amount,
-            yieldUnit: data.yield_unit,
-            sellingPrice: data.selling_price,
-            indirectCosts: data.indirect_costs,
-            preparationTimeMinutes: data.preparation_time_minutes
-        };
-        setRecipes([...recipes, newRecipe]);
-    } else if (error) {
-        alert("Erro ao salvar receita: " + error.message);
+        setRecipes([...recipes, { ...recipe, id: data.id }]);
+    } else {
+        alert("Erro ao salvar Receita (Rode o SQL no Supabase): " + (error?.message || ''));
     }
   };
 
@@ -261,9 +233,9 @@ const App: React.FC = () => {
         indirect_costs: recipe.indirectCosts,
         preparation_time_minutes: recipe.preparationTimeMinutes
     };
-
     const { error } = await supabase.from('recipes').update(payload).eq('id', recipe.id);
     if (!error) setRecipes(recipes.map(r => r.id === recipe.id ? recipe : r));
+    else alert("Erro ao atualizar Receita: " + error.message);
   };
 
   const handleDeleteRecipe = async (id: string) => {
@@ -271,6 +243,7 @@ const App: React.FC = () => {
     if (!error) setRecipes(recipes.filter(r => r.id !== id));
   };
 
+  // PRODUÇÃO
   const handleProduceRecipe = async (recipe: Recipe, batch: number) => {
       const result = storageService.deductStockForProduction(recipe, batch, ingredients);
       
@@ -283,13 +256,10 @@ const App: React.FC = () => {
           let hasError = false;
           for (const ing of updates) {
               const { error } = await supabase.from('ingredients').update({ 
-                  current_stock: ing.currentStock 
+                  current_stock: ing.currentStock,
+                  updated_at: new Date().toISOString()
               }).eq('id', ing.id);
-              
-              if (error) {
-                  console.error(error);
-                  hasError = true;
-              }
+              if (error) hasError = true;
           }
 
           if (!hasError) {
@@ -306,8 +276,14 @@ const App: React.FC = () => {
   // COMPRAS
   const handleAddPurchase = async (purchase: Purchase) => {
     if (!user) return;
-    
-    const payload = { ...purchase, user_id: user.id };
+    const payload = { 
+        user_id: user.id,
+        date: purchase.date,
+        total: purchase.total,
+        items: purchase.items,
+        notes: purchase.notes
+    };
+
     const { data: purchaseData, error } = await supabase.from('purchases').insert(payload).select().single();
     
     if (error) {
@@ -316,9 +292,9 @@ const App: React.FC = () => {
     }
 
     if (purchaseData) {
-        setPurchases([...purchases, purchaseData]);
+        setPurchases([...purchases, { ...purchase, id: purchaseData.id }]);
 
-        const updatedIngredients = storageService.processPurchase(purchaseData, ingredients);
+        const updatedIngredients = storageService.processPurchase(purchase, ingredients);
         
         const changedIngredients = updatedIngredients.filter(newIng => {
              const oldIng = ingredients.find(i => i.id === newIng.id);
@@ -334,14 +310,13 @@ const App: React.FC = () => {
                  updated_at: new Date().toISOString()
              }).eq('id', ing.id);
         }
-        
         setIngredients(updatedIngredients);
         alert("Compra salva e estoque atualizado na nuvem!");
     }
   };
 
   const handleDeletePurchase = async (id: string) => {
-    if (window.confirm("Excluir compra? (O estoque não será revertido automaticamente)")) {
+    if (window.confirm("Excluir compra?")) {
         const { error } = await supabase.from('purchases').delete().eq('id', id);
         if (!error) setPurchases(purchases.filter(p => p.id !== id));
     }
@@ -360,15 +335,15 @@ const App: React.FC = () => {
       };
 
       const { data, error } = await supabase.from('sales').insert(payload).select().single();
-      
       if (!error && data) {
           setSales([...sales, { ...sale, id: data.id }]); 
           alert("Venda registrada na nuvem!");
       } else {
-          alert("Erro ao salvar venda: " + (error?.message || ''));
+          alert("Erro ao salvar venda (Rode o SQL no Supabase): " + (error?.message || ''));
       }
   };
 
+  // --- Render ---
   if (currentPage === 'login') {
     return (
       <div className="min-h-screen bg-brand-50 flex flex-col items-center justify-center p-4">
