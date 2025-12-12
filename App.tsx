@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Layout } from './components/Layout';
+import { Layout } from './components/Layout.tsx';
 import { Dashboard } from './pages/Dashboard';
 import { Recipes } from './pages/Recipes';
 import { Inventory } from './pages/Inventory';
 import { Purchases } from './pages/Purchases';
 import { Sales } from './pages/Sales';
 import { Page, Ingredient, Recipe, Sale, Purchase } from './types';
-import { storageService } from './services/storageService'; // Mantemos para lógicas auxiliares de cálculo
+import { storageService } from './services/storageService';
 import { ChefHat, Loader2 } from 'lucide-react';
 import { supabase } from './services/supabase';
 
@@ -113,11 +113,6 @@ const App: React.FC = () => {
   // INGREDIENTES
   const handleAddIngredient = async (ing: Ingredient) => {
     if (!user) return;
-    // O ID é gerado pelo banco se omitido, mas nosso type exige string. 
-    // Vamos remover o ID gerado pelo Date.now() no frontend e deixar o banco criar UUID se possível,
-    // ou passar o UUID se gerarmos aqui. Para simplificar, usamos o que vem da UI, mas garantindo user_id.
-    
-    // Preparar objeto para o Supabase (snake_case vs camelCase se necessário, mas mapeamos direto no SQL)
     const payload = { ...ing, user_id: user.id };
     
     const { data, error } = await supabase.from('ingredients').insert(payload).select().single();
@@ -164,12 +159,9 @@ const App: React.FC = () => {
   };
 
   const handleProduceRecipe = async (recipe: Recipe, batch: number) => {
-      // 1. Calcular nova lista de ingredientes localmente (lógica complexa de negócio)
       const result = storageService.deductStockForProduction(recipe, batch, ingredients);
       
       if (result.success) {
-          // 2. Atualizar no banco apenas os ingredientes que mudaram
-          // (Num app maior, isso seria uma Transaction no backend, mas aqui faremos loop simples)
           const updates = result.ingredients.filter(newIng => {
               const oldIng = ingredients.find(i => i.id === newIng.id);
               return oldIng && oldIng.currentStock !== newIng.currentStock;
@@ -196,7 +188,6 @@ const App: React.FC = () => {
   const handleAddPurchase = async (purchase: Purchase) => {
     if (!user) return;
     
-    // 1. Salvar Compra
     const payload = { ...purchase, user_id: user.id };
     const { data: purchaseData, error } = await supabase.from('purchases').insert(payload).select().single();
     
@@ -208,20 +199,17 @@ const App: React.FC = () => {
     if (purchaseData) {
         setPurchases([...purchases, purchaseData]);
 
-        // 2. Atualizar Estoque e Preço Médio (Lógica de Negócio Local -> Persistência Nuvem)
         const updatedIngredients = storageService.processPurchase(purchaseData, ingredients);
         
-        // Identificar quais mudaram para dar update no banco
         const changedIngredients = updatedIngredients.filter(newIng => {
              const oldIng = ingredients.find(i => i.id === newIng.id);
-             // Se preço ou estoque mudou
              return oldIng && (oldIng.currentStock !== newIng.currentStock || oldIng.pricePerUnit !== newIng.pricePerUnit);
         });
 
         for (const ing of changedIngredients) {
              await supabase.from('ingredients').update({
                  currentStock: ing.currentStock,
-                 price_per_unit: ing.pricePerUnit, // Nota: certifique-se que o nome da coluna no banco bate com o type ou use snake_case map
+                 price_per_unit: ing.pricePerUnit, 
                  last_package_price: ing.lastPackagePrice,
                  last_package_size: ing.lastPackageSize,
                  updated_at: new Date().toISOString()
