@@ -1,3 +1,4 @@
+
 export enum Unit {
   KG = 'kg',
   G = 'g',
@@ -11,6 +12,16 @@ export enum PaymentMethod {
   PIX = 'Pix',
   DEBIT = 'Débito',
   CREDIT = 'Crédito'
+}
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  full_name?: string; // Novo campo
+  phone?: string;     // Novo campo
+  subscription_status: 'active' | 'blocked';
+  subscription_expires_at: string; // ISO Date
+  is_admin: boolean;
 }
 
 export interface Ingredient {
@@ -86,4 +97,4 @@ export interface CashSession {
     notes?: string;
 }
 
-export type Page = 'dashboard' | 'recipes' | 'inventory' | 'purchases' | 'sales' | 'settings' | 'login';
+export type Page = 'dashboard' | 'recipes' | 'inventory' | 'purchases' | 'sales' | 'settings' | 'login' | 'admin';

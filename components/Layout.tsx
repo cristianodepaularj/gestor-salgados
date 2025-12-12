@@ -1,6 +1,7 @@
-import React from 'react';
-import { LayoutDashboard, ChefHat, ShoppingCart, Package, DollarSign, Settings, Menu, X } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { LayoutDashboard, ChefHat, ShoppingCart, Package, DollarSign, Settings, Menu, X, Shield } from 'lucide-react';
 import { Page } from '../types';
+import { supabase } from '../services/supabase';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -11,6 +12,25 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigate, onLogout }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    checkAdmin();
+  }, []);
+
+  const checkAdmin = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+        // Regra do Dono: Hardcoded email check
+        if (user.email === 'cristianospaula1972@gmail.com') {
+            setIsAdmin(true);
+            return;
+        }
+
+        const { data } = await supabase.from('profiles').select('is_admin').eq('id', user.id).single();
+        if (data && data.is_admin) setIsAdmin(true);
+    }
+  };
 
   const NavItem = ({ page, icon: Icon, label }: { page: Page; icon: any; label: string }) => {
     const isActive = currentPage === page;
@@ -49,6 +69,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
           <NavItem page="inventory" icon={Package} label="Estoque" />
           <NavItem page="purchases" icon={ShoppingCart} label="Compras" />
           <div className="my-4 border-t border-gray-100"></div>
+          {isAdmin && (
+              <div className="mb-2">
+                <NavItem page="admin" icon={Shield} label="Admin SaaS" />
+              </div>
+          )}
           <NavItem page="settings" icon={Settings} label="Configurações" />
         </nav>
         <div className="p-4 border-t border-gray-100">
@@ -80,6 +105,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
                 <NavItem page="recipes" icon={ChefHat} label="Receitas" />
                 <NavItem page="inventory" icon={Package} label="Estoque" />
                 <NavItem page="purchases" icon={ShoppingCart} label="Compras" />
+                {isAdmin && <NavItem page="admin" icon={Shield} label="Admin SaaS" />}
                 <NavItem page="settings" icon={Settings} label="Configurações" />
                 <button onClick={onLogout} className="mt-8 w-full py-3 bg-red-50 text-red-600 rounded-xl font-medium">Sair</button>
              </nav>
