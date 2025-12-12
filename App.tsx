@@ -61,17 +61,18 @@ const App: React.FC = () => {
       setIsDataLoading(true);
       try {
           // Ingredientes
-          const { data: ingData } = await supabase.from('ingredients').select('*');
+          const { data: ingData, error: ingError } = await supabase.from('ingredients').select('*');
+          if (ingError) console.error("Erro ao carregar estoque:", ingError);
           if (ingData) {
               setIngredients(ingData.map((i: any) => ({
                   id: i.id,
-                  name: i.name,
-                  unit: i.unit,
-                  pricePerUnit: i.price_per_unit,
-                  lastPackagePrice: i.last_package_price,
-                  lastPackageSize: i.last_package_size,
-                  currentStock: i.current_stock,
-                  minStockAlert: i.min_stock_alert,
+                  name: i.name || 'Sem Nome',
+                  unit: i.unit || 'un',
+                  pricePerUnit: Number(i.price_per_unit || 0),
+                  lastPackagePrice: Number(i.last_package_price || 0),
+                  lastPackageSize: Number(i.last_package_size || 1),
+                  currentStock: Number(i.current_stock || 0),
+                  minStockAlert: Number(i.min_stock_alert || 0),
                   updatedAt: i.updated_at
               })));
           }
@@ -82,12 +83,12 @@ const App: React.FC = () => {
               setRecipes(recData.map((r: any) => ({
                   id: r.id,
                   name: r.name,
-                  items: r.items, // JSONB array usually stays as is
-                  yieldAmount: r.yield_amount,
+                  items: r.items || [], // JSONB array usually stays as is
+                  yieldAmount: Number(r.yield_amount || 0),
                   yieldUnit: r.yield_unit,
-                  sellingPrice: r.selling_price,
-                  indirectCosts: r.indirect_costs,
-                  preparationTimeMinutes: r.preparation_time_minutes
+                  sellingPrice: Number(r.selling_price || 0),
+                  indirectCosts: Number(r.indirect_costs || 0),
+                  preparationTimeMinutes: Number(r.preparation_time_minutes || 0)
               })));
           }
 
@@ -97,19 +98,19 @@ const App: React.FC = () => {
               setSales(saleData.map((s: any) => ({
                   id: s.id,
                   date: s.date,
-                  items: s.items,
-                  total: s.total,
+                  items: s.items || [],
+                  total: Number(s.total || 0),
                   paymentMethod: s.payment_method,
-                  profit: s.profit
+                  profit: Number(s.profit || 0)
               })));
           }
 
           // Compras
           const { data: purchData } = await supabase.from('purchases').select('*');
-          if (purchData) setPurchases(purchData); // Compras geralmente não tem campos complexos renomeados, assumindo compatibilidade básica ou JSONB
+          if (purchData) setPurchases(purchData); 
 
       } catch (error) {
-          console.error("Erro ao baixar dados:", error);
+          console.error("Erro geral ao baixar dados:", error);
       } finally {
           setIsDataLoading(false);
       }
@@ -166,7 +167,8 @@ const App: React.FC = () => {
     const { data, error } = await supabase.from('ingredients').insert(payload).select().single();
     
     if (error) {
-        alert('Erro ao salvar: ' + error.message);
+        alert('Erro ao salvar no banco (Verifique se as colunas name/current_stock existem): ' + error.message);
+        console.error(error);
     } else if (data) {
         // Mapear de volta para o estado local
         const newIng: Ingredient = {
@@ -280,7 +282,6 @@ const App: React.FC = () => {
 
           let hasError = false;
           for (const ing of updates) {
-              // CORREÇÃO AQUI: Usar snake_case no update
               const { error } = await supabase.from('ingredients').update({ 
                   current_stock: ing.currentStock 
               }).eq('id', ing.id);
@@ -307,7 +308,6 @@ const App: React.FC = () => {
     if (!user) return;
     
     const payload = { ...purchase, user_id: user.id };
-    // Assumindo que a tabela purchases usa nomes simples ou JSONB para items
     const { data: purchaseData, error } = await supabase.from('purchases').insert(payload).select().single();
     
     if (error) {
@@ -326,7 +326,6 @@ const App: React.FC = () => {
         });
 
         for (const ing of changedIngredients) {
-             // CORREÇÃO AQUI: Usar snake_case no update
              await supabase.from('ingredients').update({
                  current_stock: ing.currentStock,
                  price_per_unit: ing.pricePerUnit, 
@@ -356,26 +355,19 @@ const App: React.FC = () => {
           date: sale.date,
           items: sale.items,
           total: sale.total,
-          payment_method: sale.paymentMethod, // Mapeamento
+          payment_method: sale.paymentMethod, 
           profit: sale.profit
       };
 
       const { data, error } = await supabase.from('sales').insert(payload).select().single();
       
       if (!error && data) {
-          const newSale = {
-              ...data,
-              paymentMethod: data.payment_method // Mapeamento reverso se necessário, mas para lista local usamos o 'sale' original ou reload
-          };
-          // Usamos o objeto retornado para garantir ID, mas mapeamos campos
           setSales([...sales, { ...sale, id: data.id }]); 
           alert("Venda registrada na nuvem!");
       } else {
           alert("Erro ao salvar venda: " + (error?.message || ''));
       }
   };
-
-  // --- Render ---
 
   if (currentPage === 'login') {
     return (
