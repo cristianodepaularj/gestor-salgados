@@ -85,7 +85,7 @@ export const storageService = {
       // Skip items that are not linked to an ingredient (General Expenses)
       if (!item.ingredientId) return;
 
-      const index = newIngredients.findIndex(i => i.id === item.ingredientId);
+      const index = newIngredients.findIndex(i => String(i.id) === String(item.ingredientId));
       if (index >= 0) {
         const ing = newIngredients[index];
         // Calculate new weighted average price
@@ -119,7 +119,7 @@ export const storageService = {
 
     // First check if possible
     for (const item of recipe.items) {
-      const ing = newIngredients.find(i => i.id === item.ingredientId);
+      const ing = newIngredients.find(i => String(i.id) === String(item.ingredientId));
       if (!ing || ing.currentStock < (item.quantity * batchCount)) {
         possible = false;
         break;
@@ -130,7 +130,7 @@ export const storageService = {
 
     // Deduct
     recipe.items.forEach(item => {
-      const index = newIngredients.findIndex(i => i.id === item.ingredientId);
+      const index = newIngredients.findIndex(i => String(i.id) === String(item.ingredientId));
       if (index >= 0) {
         newIngredients[index].currentStock -= (item.quantity * batchCount);
       }

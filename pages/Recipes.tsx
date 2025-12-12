@@ -24,7 +24,8 @@ const RecipeCard: React.FC<{
   const calculateCosts = () => {
     let directCost = 0;
     recipe.items?.forEach(item => {
-      const ing = ingredients.find(i => i.id === item.ingredientId);
+      // Robust comparison
+      const ing = ingredients.find(i => String(i.id) === String(item.ingredientId));
       if (ing) {
         directCost += item.quantity * ing.pricePerUnit;
       }
@@ -132,7 +133,8 @@ export const Recipes: React.FC<RecipesProps> = ({ recipes, ingredients, onAddRec
   const calculateModalCosts = (recipe: Partial<Recipe>) => {
     let directCost = 0;
     recipe.items?.forEach(item => {
-      const ing = ingredients.find(i => i.id === item.ingredientId);
+      // Robust comparison
+      const ing = ingredients.find(i => String(i.id) === String(item.ingredientId));
       if (ing) {
         directCost += item.quantity * ing.pricePerUnit;
       }
@@ -144,6 +146,7 @@ export const Recipes: React.FC<RecipesProps> = ({ recipes, ingredients, onAddRec
 
   const handleAddItem = () => {
     if (!ingredients.length) return alert("Cadastre insumos no Estoque primeiro!");
+    // Default to first ingredient ID
     setNewRecipe({
       ...newRecipe,
       items: [...(newRecipe.items || []), { ingredientId: ingredients[0].id, quantity: 0 }]
@@ -257,7 +260,8 @@ export const Recipes: React.FC<RecipesProps> = ({ recipes, ingredients, onAddRec
 
             <div className="space-y-2">
                 {newRecipe.items?.map((item, idx) => {
-                    const selectedIng = ingredients.find(i => i.id === item.ingredientId);
+                    // Robust comparison
+                    const selectedIng = ingredients.find(i => String(i.id) === String(item.ingredientId));
                     const lineCost = selectedIng ? (selectedIng.pricePerUnit * item.quantity) : 0;
                     
                     return (

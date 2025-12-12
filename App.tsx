@@ -65,7 +65,7 @@ const App: React.FC = () => {
           if (ingError) console.error("Erro ingredientes:", ingError);
           if (ingData) {
               setIngredients(ingData.map((i: any) => ({
-                  id: i.id,
+                  id: String(i.id), // FORÇAR STRING
                   name: i.name || 'Sem Nome',
                   unit: i.unit || 'un',
                   pricePerUnit: Number(i.price_per_unit || 0),
@@ -82,7 +82,7 @@ const App: React.FC = () => {
           if (recError) console.error("Erro receitas:", recError);
           if (recData) {
               setRecipes(recData.map((r: any) => ({
-                  id: r.id,
+                  id: String(r.id), // FORÇAR STRING
                   name: r.name,
                   items: r.items || [], 
                   yieldAmount: Number(r.yield_amount || 0),
@@ -98,7 +98,7 @@ const App: React.FC = () => {
           if (saleError) console.error("Erro vendas:", saleError);
           if (saleData) {
               setSales(saleData.map((s: any) => ({
-                  id: s.id,
+                  id: String(s.id), // FORÇAR STRING
                   date: s.date,
                   items: s.items || [],
                   total: Number(s.total || 0),
@@ -112,7 +112,7 @@ const App: React.FC = () => {
           if (purchError) console.error("Erro compras:", purchError);
           if (purchData) {
               setPurchases(purchData.map((p: any) => ({
-                  id: p.id,
+                  id: String(p.id), // FORÇAR STRING
                   date: p.date,
                   items: p.items || [],
                   total: Number(p.total || 0),
@@ -172,7 +172,7 @@ const App: React.FC = () => {
     
     const { data, error } = await supabase.from('ingredients').insert(payload).select().single();
     if (!error && data) {
-        setIngredients([...ingredients, { ...ing, id: data.id }]);
+        setIngredients([...ingredients, { ...ing, id: String(data.id) }]);
     } else {
         alert('Erro ao salvar Insumo (Verifique se rodou o SQL): ' + (error?.message || ''));
     }
@@ -217,7 +217,7 @@ const App: React.FC = () => {
 
     const { data, error } = await supabase.from('recipes').insert(payload).select().single();
     if (!error && data) {
-        setRecipes([...recipes, { ...recipe, id: data.id }]);
+        setRecipes([...recipes, { ...recipe, id: String(data.id) }]);
     } else {
         alert("Erro ao salvar Receita (Rode o SQL no Supabase): " + (error?.message || ''));
     }
@@ -292,7 +292,7 @@ const App: React.FC = () => {
     }
 
     if (purchaseData) {
-        setPurchases([...purchases, { ...purchase, id: purchaseData.id }]);
+        setPurchases([...purchases, { ...purchase, id: String(purchaseData.id) }]);
 
         const updatedIngredients = storageService.processPurchase(purchase, ingredients);
         
@@ -336,7 +336,7 @@ const App: React.FC = () => {
 
       const { data, error } = await supabase.from('sales').insert(payload).select().single();
       if (!error && data) {
-          setSales([...sales, { ...sale, id: data.id }]); 
+          setSales([...sales, { ...sale, id: String(data.id) }]); 
           alert("Venda registrada na nuvem!");
       } else {
           alert("Erro ao salvar venda (Rode o SQL no Supabase): " + (error?.message || ''));

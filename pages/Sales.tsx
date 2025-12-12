@@ -20,7 +20,8 @@ export const Sales: React.FC<SalesProps> = ({ recipes, onAddSale, ingredients })
     // Calculate current cost dynamically for accurate profit tracking
     let cost = 0;
     recipe.items.forEach(item => {
-        const ing = ingredients.find(i => i.id === item.ingredientId);
+        // Robust comparison
+        const ing = ingredients.find(i => String(i.id) === String(item.ingredientId));
         if(ing) cost += item.quantity * ing.pricePerUnit;
     });
     cost = (cost + recipe.indirectCosts) / recipe.yieldAmount;
